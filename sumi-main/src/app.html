@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<link rel="icon" href="favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" href="favicon.png" />
+<link rel="apple-touch-icon" href="favicon.png" />
+<title>Google</title>
+<style>
+  :root {
+    --bg: #070707;
+    --fg: #f4f4f6;
+    --muted: rgba(244, 244, 246, 0.55);
+    --hairline: rgba(255, 255, 255, 0.1);
+    --rim: rgba(255, 255, 255, 0.22);
+    --glass: rgba(255, 255, 255, 0.07);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body {
+    font-family: "Inter", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    height: 100dvh;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; touch-action: manipulation; }
+  svg { display: block; }
+
+  .ambient { position: fixed; inset: 0; z-index: -1; overflow: hidden; }
+  .ambient i { position: absolute; border-radius: 50%; filter: blur(70px); }
+  .ambient i:nth-child(1) { width: 52vmax; height: 52vmax; left: -16vmax; top: -18vmax; background: #3a3a46; }
+  .ambient i:nth-child(2) { width: 44vmax; height: 44vmax; right: -14vmax; top: 28vh; background: #1f2b36; }
+  .ambient i:nth-child(3) { width: 36vmax; height: 36vmax; left: 18vw; bottom: -20vmax; background: #2e2e2e; }
+
+  .glass {
+    position: relative;
+    isolation: isolate;
+    background: var(--glass);
+    border: 1px solid var(--rim);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.3),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.25),
+      0 12px 32px -12px rgba(0, 0, 0, 0.7);
+  }
+  .refract .glass {
+    backdrop-filter: var(--f) blur(1.5px) saturate(180%);
+    -webkit-backdrop-filter: var(--f) blur(1.5px) saturate(180%);
+  }
+  .plain .glass {
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+  }
+  .glass::before {
+    content: "";
+    position: absolute; inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    background: radial-gradient(circle at var(--lx, 50%) var(--ly, 0%), rgba(255, 255, 255, 0.2), transparent 60%);
+  }
+
+  .press { transition: transform 0.2s cubic-bezier(0.3, 1.2, 0.5, 1), background 0.15s; }
+  .press:active { transform: scale(0.93); }
+
+  main { height: 100%; }
+  .view { display: none; height: 100%; }
+  .view.active { display: flex; }
+
+  .gear {
+    position: fixed;
+    top: 12px; right: 12px;
+    z-index: 20;
+    width: 48px; height: 48px;
+    display: grid; place-items: center;
+    border-radius: 50%;
+    color: var(--fg);
+  }
+  .gear svg { width: 19px; height: 19px; }
+
+  .socials {
+    position: fixed;
+    left: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    z-index: 20;
+    display: flex;
+    gap: 8px;
+  }
+  .social {
+    width: 48px; height: 48px;
+    display: grid; place-items: center;
+    border-radius: 50%;
+    color: var(--fg);
+    text-decoration: none;
+  }
+  .social svg { width: 20px; height: 20px; }
+  .social:focus-visible { outline: 1px solid var(--fg); outline-offset: 2px; }
+
+  #view-menu { align-items: center; justify-content: center; padding: 24px; }
+  .grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 28px 40px;
+  }
+  .service {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    width: 120px;
+    padding: 12px 8px;
+    border-radius: 24px;
+  }
+  .service:focus-visible { outline: 1px solid var(--fg); outline-offset: 2px; }
+  .tile {
+    display: block;
+    position: relative;
+    width: 96px; height: 96px;
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 16px 36px -14px rgba(0, 0, 0, 0.8);
+  }
+  .tile img { width: 100%; height: 100%; object-fit: cover; display: block; user-select: none; -webkit-user-drag: none; }
+  .tile::after {
+    content: "";
+    position: absolute; inset: 0;
+    border-radius: inherit;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    pointer-events: none;
+  }
+  .service-name { font-size: 0.86rem; font-weight: 500; }
+  .service:active .tile { transform: scale(0.94); }
+  .service .tile { transition: transform 0.2s cubic-bezier(0.3, 1.2, 0.5, 1); }
+
+  #view-launch { flex-direction: column; position: relative; }
+  .back {
+    position: absolute;
+    top: 12px; left: 12px;
+    z-index: 5;
+    width: 48px; height: 48px;
+    display: grid; place-items: center;
+    border-radius: 50%;
+  }
+  .back svg { width: 18px; height: 18px; }
+
+  .frame-area { position: relative; flex: 1; min-height: 0; }
+  .probe-frame {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    border: 0;
+    background: var(--bg);
+    visibility: hidden;
+    opacity: 0;
+  }
+  .probe-frame.active { visibility: visible; opacity: 1; transition: opacity 0.3s ease; }
+
+  .status {
+    position: absolute; inset: 0;
+    z-index: 2;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 16px;
+    padding: 24px;
+    text-align: center;
+  }
+  .pill {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 20px;
+    border-radius: 999px;
+    font-size: 0.84rem;
+    color: var(--muted);
+  }
+  .spin {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(255, 255, 255, 0.2);
+    border-top-color: var(--fg);
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 16px;
+    max-width: 340px;
+    padding: 24px;
+    border-radius: 24px;
+  }
+  .error p { color: var(--muted); font-size: 0.84rem; line-height: 1.7; }
+  .actions { display: flex; gap: 8px; }
+
+  .btn {
+    min-height: 44px;
+    padding: 0 20px;
+    border-radius: 999px;
+    font-size: 0.86rem;
+    font-weight: 500;
+  }
+  .btn.solid { background: var(--fg); color: #000; }
+
+  .overlay {
+    position: fixed; inset: 0;
+    z-index: 50;
+    display: flex; align-items: flex-end; justify-content: center;
+    background: rgba(0, 0, 0, 0.45);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+  .overlay.open { opacity: 1; pointer-events: auto; }
+  .sheet {
+    width: min(460px, 100%);
+    max-height: 86dvh;
+    overflow-y: auto;
+    padding: 18px 20px 28px;
+    background: rgba(16, 16, 18, 0.94);
+    border: 1px solid var(--hairline);
+    border-bottom: 0;
+    border-radius: 28px 28px 0 0;
+    transform: translateY(16px);
+    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .overlay.open .sheet { transform: none; }
+  @media (min-width: 640px) {
+    .overlay { align-items: center; padding: 24px; }
+    .sheet { border-radius: 28px; border-bottom: 1px solid var(--hairline); }
+  }
+
+  .sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .sheet-head h2 { font-size: 1rem; font-weight: 600; }
+  .close { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; margin-right: -10px; }
+  .close svg { width: 16px; height: 16px; }
+
+  .group { padding: 18px 0; }
+  .group + .group { border-top: 1px solid var(--hairline); }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .label { font-size: 0.9rem; font-weight: 500; }
+  .group-title { font-size: 0.9rem; font-weight: 500; margin-bottom: 12px; }
+  .desc { margin-top: 10px; font-size: 0.76rem; line-height: 1.7; color: var(--muted); }
+  .desc code { font-family: ui-monospace, monospace; font-size: 0.72rem; color: var(--fg); }
+
+  .field-label { display: block; margin-bottom: 8px; font-size: 0.82rem; font-weight: 500; color: var(--muted); }
+  .field-label.spaced { margin-top: 16px; }
+  .field {
+    width: 100%;
+    min-height: 46px;
+    padding: 0 14px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--hairline);
+    color: var(--fg);
+    font: inherit;
+    font-size: 0.92rem;
+  }
+  .field::placeholder { color: var(--muted); }
+  .field:focus { outline: 1px solid var(--fg); outline-offset: 2px; }
+  .upload { width: 100%; margin-top: 12px; }
+
+  .toggle {
+    position: relative;
+    flex: none;
+    width: 56px; height: 34px;
+    border-radius: 99px;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid var(--hairline);
+    transition: background 0.25s ease;
+  }
+  .toggle::before { content: ""; position: absolute; inset: -8px -6px; }
+  .toggle[aria-checked="true"] { background: var(--fg); }
+  .toggle .knob {
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.9);
+    transition: transform 0.3s cubic-bezier(0.3, 0.7, 0.3, 1), background 0.25s ease;
+  }
+  .toggle[aria-checked="true"] .knob { transform: translateX(22px); background: #0a0a0a; }
+  .toggle:focus-visible { outline: 1px solid var(--fg); outline-offset: 3px; }
+
+  .list {
+    max-height: 260px;
+    overflow-y: auto;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--hairline);
+  }
+  .opt {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    width: 100%;
+    min-height: 56px;
+    padding: 12px 16px;
+    text-align: left;
+    color: var(--muted);
+    transition: background 0.15s ease;
+  }
+  .opt + .opt { border-top: 1px solid var(--hairline); }
+  .opt:hover { background: rgba(255, 255, 255, 0.04); }
+  .opt:active { background: rgba(255, 255, 255, 0.08); }
+  .opt:focus-visible { outline: 1px solid var(--fg); outline-offset: -2px; }
+  .opt .name { display: block; color: var(--fg); font-size: 0.92rem; font-weight: 500; }
+  .opt .sub { display: block; margin-top: 3px; font-size: 0.74rem; }
+  .opt .meta { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .opt .thumb {
+    flex: none;
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    object-fit: cover;
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+  }
+  .opt .check {
+    flex: none;
+    width: 18px; height: 18px;
+    opacity: 0;
+    transform: scale(0.8);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  .check svg { width: 18px; height: 18px; }
+  .opt[aria-checked="true"] { color: var(--fg); }
+  .opt[aria-checked="true"] .check { opacity: 1; transform: none; }
+
+  .toasts {
+    position: fixed;
+    left: 50%; bottom: 24px;
+    transform: translateX(-50%);
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    z-index: 100;
+    pointer-events: none;
+  }
+  .toast {
+    padding: 10px 16px;
+    border-radius: 999px;
+    background: rgba(28, 28, 30, 0.72);
+    border: 1px solid var(--rim);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    box-shadow: 0 12px 30px -12px rgba(0, 0, 0, 0.7);
+    font-size: 0.82rem;
+    max-width: min(90vw, 420px);
+    animation: toastIn 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  .toast.out { animation: toastOut 0.2s ease both; }
+  @keyframes toastIn { from { opacity: 0; transform: translateY(8px); } }
+  @keyframes toastOut { to { opacity: 0; transform: translateY(6px); } }
+</style>
+</head>
+<body>
+  <div class="ambient" aria-hidden="true"><i></i><i></i><i></i></div>
+
+  <button class="gear glass press" id="btn-settings" aria-label="設定を開く" title="設定">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 8.9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9c.36.62.99 1 1.56 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1Z"/>
+    </svg>
+  </button>
+
+  <div class="socials">
+    <a class="social glass press" href="https://discord.gg/fq39dfdtBb" target="_blank" rel="noopener noreferrer" aria-label="Discord コミュニティに参加" title="Discord">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M20.317 4.37a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.058a.082.082 0 0 0 .031.056 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.873-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .078-.01c3.928 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .079.009c.12.099.246.198.373.292a.077.077 0 0 1-.007.128 12.3 12.3 0 0 1-1.873.891.077.077 0 0 0-.04.107c.36.698.772 1.363 1.225 1.993a.076.076 0 0 0 .084.029 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.055c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.029ZM8.02 15.331c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/>
+      </svg>
+    </a>
+    <a class="social glass press" href="https://github.com/zenith-kamo/sumi" target="_blank" rel="noopener noreferrer" aria-label="GitHub リポジトリを開く" title="GitHub">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
+      </svg>
+    </a>
+  </div>
+
+  <main>
+    <section class="view active" id="view-menu" aria-label="メインメニュー">
+      <div class="grid" id="service-grid"></div>
+    </section>
+
+    <section class="view" id="view-launch" aria-label="サービス起動">
+      <button class="back glass press" id="btn-back" aria-label="メニューに戻る" title="メニューに戻る">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M15 18l-6-6 6-6"/>
+        </svg>
+      </button>
+      <div class="frame-area" id="frame-area">
+        <div class="status" id="launch-status">
+          <div class="pill glass" id="status-pill">
+            <span class="spin"></span>
+            <span id="status-text"></span>
+          </div>
+          <div class="error glass" id="error-box" hidden>
+            <p id="error-message"></p>
+            <div class="actions">
+              <button class="btn solid press" id="btn-retry">再試行</button>
+              <button class="btn glass press" id="btn-error-back">戻る</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="overlay" id="settings" role="dialog" aria-modal="true" aria-label="設定">
+    <div class="sheet">
+      <div class="sheet-head">
+        <h2>設定</h2>
+        <button class="close press" id="btn-close-settings" aria-label="設定を閉じる">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M6 6l12 12M18 6L6 18"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="group">
+        <div class="row">
+          <span class="label" id="cloak-label">about:blank クローキング</span>
+          <button class="toggle" id="toggle-cloak" role="switch" aria-checked="false" aria-labelledby="cloak-label">
+            <span class="knob"></span>
+          </button>
+        </div>
+        <p class="desc">
+          有効にすると、このアプリが新しいタブの <code>about:blank</code> で開き、アドレスバーにURLやサイト名が表示されなくなります。
+          ポップアップが表示された場合は許可してください。元のタブは手動で閉じてください。
+        </p>
+      </div>
+
+      <div class="group">
+        <div class="group-title">表示</div>
+        <label class="field-label" for="title-input">タイトル</label>
+        <input class="field" id="title-input" type="text" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Google" />
+        <div class="field-label spaced">アイコン</div>
+        <div class="list" id="icon-list" role="radiogroup" aria-label="アイコン"></div>
+        <input type="file" id="icon-file" accept="image/*" hidden />
+        <button class="btn glass press upload" id="btn-upload-icon" type="button">画像をアップロード</button>
+        <p class="desc">
+          プリセットを選ぶとアイコンとタイトルがまとめて変わります。アップロードした画像はこの端末内にのみ保存されます。
+        </p>
+      </div>
+
+      <div class="group">
+        <div class="group-title">URLリストの取得先</div>
+        <div class="list" id="source-list" role="radiogroup" aria-label="URLリストの取得先"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toasts" id="toast-wrap" aria-live="polite"></div>
+
+<script src="liquid-glass.js"></script>
+<script>
+'use strict';
+
+const PRISTINE_DOC = document.documentElement.cloneNode(true);
+
+function buildAppHtml() {
+  const baseHref = location.href.replace(/[^/]*$/, '');
+  const root = PRISTINE_DOC.cloneNode(true);
+  const titleElement = root.querySelector('title');
+  if (titleElement) titleElement.textContent = settings.title || DEFAULT_TITLE;
+  const iconUrl = Appearance.iconUrl();
+  root.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]').forEach((link) => {
+    link.setAttribute('href', iconUrl);
+  });
+  const html = root.outerHTML;
+  return '<!DOCTYPE html>\n' + html
+    .replace('<head>', () => '<head><base href="' + baseHref + '">')
+    .replace(/^<html([^>]*)>/, '<html$1 data-cloaked>');
+}
+
+const SERVICES = [
+  { id: 'shadow', name: 'Shadow', icon: './img/shadow.png' },
+  { id: 'doge', name: 'Doge UB', icon: './img/doge.png' },
+  { id: 'opium', name: 'Opium', icon: './img/opium.png' },
+  { id: 'fern', name: 'Fern', icon: './img/fern.svg' },
+];
+
+const DEFAULT_TITLE = 'Google';
+const ICON_SIZE = 256;
+
+const APPEARANCE_PRESETS = [
+  { id: 'google', label: 'Google', title: 'Google', icon: './favicon.png', desc: 'Google アイコン + Google' },
+  { id: 'sumi1',  label: 'Sumi 1', title: 'Sumi',   icon: './img/sumi1.png', desc: 'Sumi1 アイコン + Sumi' },
+  { id: 'sumi2',  label: 'Sumi 2', title: 'Sumi',   icon: './img/sumi2.png', desc: 'Sumi2 アイコン + Sumi' },
+];
+
+const REPO = 'zenith-kamo/sumi';
+const BRANCH = 'main';
+const LIST_DIR = 'link';
+const PROBE_TIMEOUT_MS = 12000;
+const PROBE_CONCURRENCY = 10;
+
+const URL_PROVIDERS = {
+  github:     { label: 'GitHub Raw',       listUrl: (service) => `https://raw.githubusercontent.com/${REPO}/refs/heads/${BRANCH}/${LIST_DIR}/${service.id}.txt` },
+  statically: { label: 'Statically',       listUrl: (service) => `https://cdn.statically.io/gh/${REPO}@${BRANCH}/${LIST_DIR}/${service.id}.txt` },
+  githack:    { label: 'raw.githack.com',  listUrl: (service) => `https://raw.githack.com/${REPO}/${BRANCH}/${LIST_DIR}/${service.id}.txt` },
+  githubraw:  { label: 'githubraw.com',    listUrl: (service) => `https://githubraw.com/${REPO}/${BRANCH}/${LIST_DIR}/${service.id}.txt` },
+  esmsh:      { label: 'esm.sh',           listUrl: (service) => `https://esm.sh/gh/${REPO}@${BRANCH}/${LIST_DIR}/${service.id}.txt` },
+  jsdelivr:   { label: 'jsDelivr',         listUrl: (service) => `https://cdn.jsdelivr.net/gh/${REPO}@${BRANCH}/${LIST_DIR}/${service.id}.txt` },
+};
+
+const SOURCES = [
+  { id: 'auto',       label: 'Auto',            desc: 'GitHub Raw を優先し、失敗時に他の取得先へ順番に切り替えます', providers: ['github', 'statically', 'githack', 'githubraw', 'esmsh', 'jsdelivr'] },
+  { id: 'github',     label: 'GitHub Raw',      desc: 'GitHub Raw のみを使用します',                                  providers: ['github'] },
+  { id: 'jsdelivr',   label: 'jsDelivr',        desc: 'jsDelivr のみを使用します',                                    providers: ['jsdelivr'] },
+  { id: 'statically', label: 'Statically',      desc: 'cdn.statically.io のみを使用します',                           providers: ['statically'] },
+  { id: 'esmsh',      label: 'esm.sh',          desc: 'esm.sh のみを使用します',                                      providers: ['esmsh'] },
+  { id: 'githack',    label: 'raw.githack.com', desc: 'raw.githack.com のみを使用します',                             providers: ['githack'] },
+  { id: 'githubraw',  label: 'githubraw.com',   desc: 'githubraw.com のみを使用します',                               providers: ['githubraw'] },
+];
+
+const $ = (selector) => document.querySelector(selector);
+const CHECK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+
+const Store = {
+  KEY: 'unblock-proxy:settings',
+  defaults: { source: 'auto', cloaking: false, title: 'Google', icon: 'google', customIcon: '' },
+  data: null,
+  load() {
+    try {
+      return { ...this.defaults, ...(JSON.parse(localStorage.getItem(this.KEY)) || {}) };
+    } catch {
+      return { ...this.defaults };
+    }
+  },
+  save(patch) {
+    Object.assign(this.data, patch);
+    try { localStorage.setItem(this.KEY, JSON.stringify(this.data)); } catch {}
+  },
+};
+Store.data = Store.load();
+const settings = Store.data;
+
+function currentSource() {
+  return SOURCES.find((source) => source.id === settings.source) || SOURCES[0];
+}
+
+const UI = {
+  views: { menu: $('#view-menu'), launch: $('#view-launch') },
+  showView(name) {
+    for (const view of Object.values(this.views)) view.classList.remove('active');
+    this.views[name].classList.add('active');
+  },
+  toast(message) {
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.textContent = message;
+    $('#toast-wrap').appendChild(el);
+    setTimeout(() => {
+      el.classList.add('out');
+      el.addEventListener('animationend', () => el.remove(), { once: true });
+    }, 2600);
+  },
+};
+
+function buildMenu() {
+  const grid = $('#service-grid');
+  for (const service of SERVICES) {
+    const button = document.createElement('button');
+    button.className = 'service';
+    button.innerHTML = '<span class="tile"><img alt="" draggable="false" /></span><span class="service-name"></span>';
+    const image = button.querySelector('img');
+    image.src = service.icon;
+    image.addEventListener('error', () => {
+      image.onerror = null;
+      image.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23f4f4f6" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>');
+    });
+    button.querySelector('.service-name').textContent = service.name;
+    button.addEventListener('click', () => Launcher.launch(service));
+    grid.appendChild(button);
+  }
+}
+
+const Sources = {
+  async fetchText(url) {
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.text();
+  },
+
+  parseList(text) {
+    return text.split(/\r?\n/).map((line) => line.trim()).filter((line) => line && !line.startsWith('#'));
+  },
+
+  async fetchList(service) {
+    let lastError = null;
+    for (const providerId of currentSource().providers) {
+      const provider = URL_PROVIDERS[providerId];
+      try {
+        const list = this.parseList(await this.fetchText(provider.listUrl(service)));
+        if (list.length > 0) return list;
+        lastError = new Error(`${provider.label}: リストが空です`);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError || new Error('URLリストを取得できませんでした');
+  },
+};
+
+const SourceList = {
+  element: $('#source-list'),
+
+  init() {
+    for (const source of SOURCES) {
+      const option = document.createElement('button');
+      option.className = 'opt';
+      option.setAttribute('role', 'radio');
+      option.dataset.id = source.id;
+      option.innerHTML = '<span><span class="name"></span><span class="sub"></span></span><span class="check">' + CHECK_ICON + '</span>';
+      option.querySelector('.name').textContent = source.label;
+      option.querySelector('.sub').textContent = source.desc;
+      option.addEventListener('click', () => this.choose(source.id));
+      this.element.appendChild(option);
+    }
+    this.element.addEventListener('keydown', (event) => this.handleKey(event));
+    this.sync();
+  },
+
+  options() {
+    return Array.from(this.element.querySelectorAll('.opt'));
+  },
+
+  sync() {
+    const selectedId = currentSource().id;
+    for (const option of this.options()) {
+      const isSelected = option.dataset.id === selectedId;
+      option.setAttribute('aria-checked', String(isSelected));
+      option.tabIndex = isSelected ? 0 : -1;
+    }
+  },
+
+  choose(id) {
+    if (currentSource().id === id) return;
+    Store.save({ source: id });
+    this.sync();
+    UI.toast('取得先: ' + currentSource().label);
+  },
+
+  handleKey(event) {
+    const options = this.options();
+    const currentIndex = options.findIndex((option) => option.getAttribute('aria-checked') === 'true');
+    let nextIndex = null;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % options.length;
+    if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + options.length) % options.length;
+    if (nextIndex === null) return;
+
+    event.preventDefault();
+    this.choose(options[nextIndex].dataset.id);
+    options[nextIndex].focus();
+  },
+};
+
+const Appearance = {
+  titleInput: null,
+
+  init() {
+    this.titleInput = $('#title-input');
+    this.titleInput.addEventListener('input', () => this.onTitleInput());
+    this.titleInput.addEventListener('blur', () => this.commitTitle(true));
+    this.titleInput.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      this.commitTitle(true);
+      this.titleInput.blur();
+    });
+    $('#btn-upload-icon').addEventListener('click', () => $('#icon-file').click());
+    $('#icon-file').addEventListener('change', (event) => this.onFile(event));
+    IconList.init();
+    this.apply();
+  },
+
+  preset(id) {
+    return APPEARANCE_PRESETS.find((preset) => preset.id === id) || null;
+  },
+
+  iconUrl() {
+    if (settings.icon === 'custom' && settings.customIcon) return settings.customIcon;
+    return (this.preset(settings.icon) || APPEARANCE_PRESETS[0]).icon;
+  },
+
+  apply() {
+    document.title = settings.title || DEFAULT_TITLE;
+    const iconUrl = this.iconUrl();
+    document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]').forEach((link) => {
+      link.setAttribute('href', iconUrl);
+    });
+    if (this.titleInput && document.activeElement !== this.titleInput) {
+      this.titleInput.value = settings.title || '';
+    }
+    IconList.sync();
+  },
+
+  setPreset(id) {
+    const preset = this.preset(id);
+    if (!preset) return;
+    Store.save({ icon: preset.id, title: preset.title });
+    this.apply();
+    this.titleInput.value = preset.title;
+    UI.toast('表示を「' + preset.label + '」に変更しました');
+  },
+
+  onTitleInput() {
+    const title = this.titleInput.value.trim() || DEFAULT_TITLE;
+    Store.save({ title });
+    document.title = title;
+  },
+
+  commitTitle(updateInput) {
+    const title = this.titleInput.value.trim() || DEFAULT_TITLE;
+    Store.save({ title });
+    document.title = title;
+    if (updateInput) this.titleInput.value = title;
+  },
+
+  onFile(event) {
+    const input = event.target;
+    const file = input.files && input.files[0];
+    input.value = '';
+    if (!file) return;
+    if (!file.type || !file.type.startsWith('image/')) {
+      UI.toast('画像ファイルを選択してください');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      UI.toast('画像は5MB以下にしてください');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const image = new Image();
+      image.onload = () => {
+        if (!image.width || !image.height) {
+          UI.toast('画像を読み込めませんでした');
+          return;
+        }
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = ICON_SIZE;
+          canvas.height = ICON_SIZE;
+          const context = canvas.getContext('2d');
+          if (!context) throw new Error('canvas unavailable');
+          const scale = Math.max(ICON_SIZE / image.width, ICON_SIZE / image.height);
+          const width = image.width * scale;
+          const height = image.height * scale;
+          context.drawImage(image, (ICON_SIZE - width) / 2, (ICON_SIZE - height) / 2, width, height);
+          Store.save({ icon: 'custom', customIcon: canvas.toDataURL('image/png') });
+          this.apply();
+          UI.toast('アイコンを変更しました');
+        } catch {
+          UI.toast('この画像は使用できません');
+        }
+      };
+      image.onerror = () => UI.toast('画像を読み込めませんでした');
+      image.src = reader.result;
+    };
+    reader.onerror = () => UI.toast('画像を読み込めませんでした');
+    reader.readAsDataURL(file);
+  },
+};
+
+const IconList = {
+  element: null,
+
+  init() {
+    this.element = $('#icon-list');
+    for (const preset of APPEARANCE_PRESETS) {
+      this.element.appendChild(this.createOption(preset.id, preset.icon, preset.label, preset.desc));
+    }
+    this.element.appendChild(this.createOption('custom', '', 'カスタム', 'アップロードした画像'));
+    this.element.addEventListener('keydown', (event) => this.handleKey(event));
+    this.sync();
+  },
+
+  createOption(id, icon, label, desc) {
+    const option = document.createElement('button');
+    option.className = 'opt';
+    option.setAttribute('role', 'radio');
+    option.dataset.id = id;
+    option.innerHTML = '<span class="meta"><img class="thumb" alt="" /><span><span class="name"></span><span class="sub"></span></span></span><span class="check">' + CHECK_ICON + '</span>';
+    if (icon) option.querySelector('.thumb').src = icon;
+    option.querySelector('.name').textContent = label;
+    option.querySelector('.sub').textContent = desc;
+    option.addEventListener('click', () => this.choose(id));
+    return option;
+  },
+
+  options() {
+    return Array.from(this.element.querySelectorAll('.opt')).filter((option) => !option.hidden);
+  },
+
+  sync() {
+    const customOption = this.element.querySelector('[data-id="custom"]');
+    const hasCustom = Boolean(settings.customIcon);
+    customOption.hidden = !hasCustom;
+    if (hasCustom) customOption.querySelector('.thumb').src = settings.customIcon;
+
+    const preset = Appearance.preset(settings.icon);
+    const selectedId = hasCustom && settings.icon === 'custom' ? 'custom' : (preset ? preset.id : 'google');
+    for (const option of this.options()) {
+      const isSelected = option.dataset.id === selectedId;
+      option.setAttribute('aria-checked', String(isSelected));
+      option.tabIndex = isSelected ? 0 : -1;
+    }
+  },
+
+  choose(id) {
+    if (id === 'custom') {
+      if (!settings.customIcon) return;
+      Store.save({ icon: 'custom' });
+      Appearance.apply();
+      UI.toast('アイコンを変更しました');
+      return;
+    }
+    Appearance.setPreset(id);
+  },
+
+  handleKey(event) {
+    const options = this.options();
+    const currentIndex = options.findIndex((option) => option.getAttribute('aria-checked') === 'true');
+    let nextIndex = null;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % options.length;
+    if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + options.length) % options.length;
+    if (nextIndex === null) return;
+
+    event.preventDefault();
+    const next = options[nextIndex];
+    this.choose(next.dataset.id);
+    next.focus();
+  },
+};
+
+const Launcher = {
+  current: null,
+  busy: false,
+  sessionId: 0,
+  controller: null,
+  elements: {
+    status: $('#launch-status'),
+    pill: $('#status-pill'),
+    text: $('#status-text'),
+    error: $('#error-box'),
+    errorMessage: $('#error-message'),
+    area: $('#frame-area'),
+  },
+
+  showStatus(text) {
+    this.elements.status.hidden = false;
+    this.elements.pill.hidden = false;
+    this.elements.error.hidden = true;
+    this.elements.text.textContent = text;
+  },
+
+  showError(message) {
+    this.busy = false;
+    this.elements.pill.hidden = true;
+    this.elements.error.hidden = false;
+    this.elements.errorMessage.textContent = message;
+  },
+
+  clearFrames() {
+    this.elements.area.querySelectorAll('iframe').forEach((frame) => frame.remove());
+  },
+
+  async launch(service) {
+    if (this.busy) return;
+    this.current = service;
+    this.busy = true;
+    const session = ++this.sessionId;
+
+    if (this.controller) this.controller.abort();
+    const controller = new AbortController();
+    this.controller = controller;
+
+    this.clearFrames();
+    UI.showView('launch');
+    this.showStatus(service.name + ' を準備しています');
+
+    let urls;
+    try {
+      urls = await Sources.fetchList(service);
+    } catch (error) {
+      if (session === this.sessionId) {
+        this.showError('URLリストの取得に失敗しました。ネットワーク接続を確認するか、取得先を変更してください。(' + error.message + ')');
+      }
+      return;
+    }
+
+    if (session !== this.sessionId) return;
+
+    let frame;
+    try {
+      frame = await this.probeFirstAvailable(urls, controller.signal);
+    } catch {
+      if (session === this.sessionId) {
+        this.showError('すべてのURLの読み込みに失敗しました。リストのURLが利用不可になっている可能性があります。');
+      }
+      return;
+    }
+
+    // 最初に読み込めたフレーム以外は破棄する
+    controller.abort();
+    if (session !== this.sessionId) {
+      frame.remove();
+      return;
+    }
+    this.elements.area.querySelectorAll('iframe').forEach((other) => { if (other !== frame) other.remove(); });
+    frame.classList.add('active');
+    this.elements.status.hidden = true;
+    this.busy = false;
+  },
+
+  /**
+   * URLを最大 PROBE_CONCURRENCY 件まで同時に読み込み、
+   * 最初に load できたフレームを返す。失敗した分は次のURLで補充する。
+   */
+  probeFirstAvailable(urls, signal) {
+    return new Promise((resolve, reject) => {
+      let nextIndex = 0;
+      let active = 0;
+      let settled = false;
+
+      const fail = () => {
+        if (settled) return;
+        settled = true;
+        reject(new Error('all probes failed'));
+      };
+
+      const startNext = () => {
+        if (settled) return;
+        if (signal.aborted) { fail(); return; }
+        if (nextIndex >= urls.length) {
+          if (active === 0) fail();
+          return;
+        }
+
+        const index = nextIndex++;
+        active++;
+        this.showStatus('接続中… ' + (index + 1) + ' / ' + urls.length);
+
+        this.probeIframe(urls[index], signal).then(
+          (frame) => {
+            active--;
+            if (settled) { frame.remove(); return; }
+            settled = true;
+            resolve(frame);
+          },
+          () => {
+            active--;
+            startNext();
+          },
+        );
+      };
+
+      if (urls.length === 0) { fail(); return; }
+      const initialCount = Math.min(PROBE_CONCURRENCY, urls.length);
+      for (let i = 0; i < initialCount; i++) startNext();
+    });
+  },
+
+  probeIframe(url, signal) {
+    return new Promise((resolve, reject) => {
+      if (signal && signal.aborted) {
+        reject(new Error('aborted'));
+        return;
+      }
+
+      const frame = document.createElement('iframe');
+      frame.className = 'probe-frame';
+      frame.src = url;
+      frame.allow = 'fullscreen; clipboard-read; clipboard-write';
+
+      let settled = false;
+      let loadTimer = 0;
+
+      const settle = (ok) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(loadTimer);
+        clearTimeout(timer);
+        frame.removeEventListener('load', onLoad);
+        frame.removeEventListener('error', onError);
+        if (signal) signal.removeEventListener('abort', onAbort);
+        if (ok) {
+          resolve(frame);
+        } else {
+          frame.remove();
+          reject(new Error('load failed: ' + url));
+        }
+      };
+      const onLoad = () => { loadTimer = setTimeout(() => settle(true), 350); };
+      const onError = () => settle(false);
+      const onAbort = () => settle(false);
+      const timer = setTimeout(() => settle(false), PROBE_TIMEOUT_MS);
+
+      frame.addEventListener('load', onLoad);
+      frame.addEventListener('error', onError);
+      if (signal) {
+        signal.addEventListener('abort', onAbort, { once: true });
+        if (signal.aborted) onAbort();
+      }
+      this.elements.area.appendChild(frame);
+    });
+  },
+
+  back() {
+    this.sessionId++;
+    this.busy = false;
+    if (this.controller) this.controller.abort();
+    this.clearFrames();
+    UI.showView('menu');
+  },
+};
+
+const Cloak = {
+  open() {
+    const win = window.open('about:blank', '_blank');
+    if (!win) return false;
+    try {
+      win.document.open();
+      win.document.write(buildAppHtml());
+      win.document.close();
+      win.name = '__unblock_proxy_cloaked__';
+    } catch {
+      return false;
+    }
+    return true;
+  },
+};
+
+const cloakToggle = $('#toggle-cloak');
+
+function setCloakUI(isOn) {
+  cloakToggle.setAttribute('aria-checked', String(isOn));
+}
+
+cloakToggle.addEventListener('click', () => {
+  const nextIsOn = cloakToggle.getAttribute('aria-checked') !== 'true';
+
+  if (!nextIsOn) {
+    Store.save({ cloaking: false });
+    setCloakUI(false);
+    UI.toast('次の起動から通常のタブで開きます');
+    return;
+  }
+
+  if (!Cloak.open()) {
+    setCloakUI(false);
+    Store.save({ cloaking: false });
+    UI.toast('ポップアップがブロックされました。許可してから再度お試しください');
+    return;
+  }
+
+  Store.save({ cloaking: true });
+  setCloakUI(true);
+  UI.toast('about:blank で開きました。次回起動時も自動で切り替わります');
+});
+
+const Settings = {
+  overlay: $('#settings'),
+  open() {
+    Appearance.apply();
+    SourceList.sync();
+    setCloakUI(settings.cloaking);
+    this.overlay.classList.add('open');
+  },
+  close() {
+    this.overlay.classList.remove('open');
+  },
+  init() {
+    $('#btn-settings').addEventListener('click', () => this.open());
+    $('#btn-close-settings').addEventListener('click', () => this.close());
+    this.overlay.addEventListener('click', (event) => { if (event.target === this.overlay) this.close(); });
+    document.addEventListener('keydown', (event) => { if (event.key === 'Escape') this.close(); });
+  },
+};
+
+function init() {
+  Appearance.init();
+  buildMenu();
+  SourceList.init();
+  Settings.init();
+
+  $('#btn-back').addEventListener('click', () => Launcher.back());
+  $('#btn-error-back').addEventListener('click', () => Launcher.back());
+  $('#btn-retry').addEventListener('click', () => { if (Launcher.current) Launcher.launch(Launcher.current); });
+
+  document.querySelectorAll('.glass').forEach((element) => LiquidGlass.applyGlassEffect(element));
+}
+init();
+</script>
+</body>
+</html>
